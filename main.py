@@ -1,48 +1,36 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import Dict
-import random
+from typing import List
 
-# Creamos la aplicación FastAPI
 app = FastAPI()
 
-# Simulamos una base de datos en memoria para las películas y sus puntuaciones
-movies_db = {
-    1: {"title": "Inception", "ratings": []},
-    2: {"title": "The Matrix", "ratings": []},
-    3: {"title": "The Dark Knight", "ratings": []},
-}
+# Lista de usuarios en memoria (simula una base de datos)
+users_db = []
 
-# Modelo para las puntuaciones
-class Rating(BaseModel):
-    score: int  # Puntuación entre 1 y 10
+# Definimos el modelo de datos para el usuario
+class User(BaseModel):
+    username: str
+    email: str
+    full_name: str = None
+    age: int
 
-# Ruta para obtener todas las películas
-@app.get("/movies")
-def get_movies():
-    return {"movies": [{"id": movie_id, "title": movie["title"]} for movie_id, movie in movies_db.items()]}
+# Ruta para crear un usuario
+@app.post("/users/", response_model=User)
+def create_user(user: User):
+    users_db.append(user)  # Agregar el usuario a la lista
+    return user
 
-# Ruta para calificar una película
-@app.post("/movies/{movie_id}/rate")
-def rate_movie(movie_id: int, rating: Rating):
-    if movie_id not in movies_db:
-        return {"error": "Movie not found"}
-    
-    if 1 <= rating.score <= 10:
-        movies_db[movie_id]["ratings"].append(rating.score)
-        return {"message": "Rating added successfully"}
-    else:
-        return {"error": "Rating must be between 1 and 10"}
+# Ruta para obtener todos los usuarios
+@app.get("/users/", response_model=List[User])
+def get_users():
+    return users_db
 
-# Ruta para obtener el promedio de puntuación de una película
-@app.get("/movies/{movie_id}/average")
-def get_average_rating(movie_id: int):
-    if movie_id not in movies_db:
-        return {"error": "Movie not found"}
-    
-    ratings = movies_db[movie_id]["ratings"]
-    if ratings:
-        average = sum(ratings) / len(ratings)
-        return {"average_rating": round(average, 2)}
-    else:
-        return {"average_rating": "No ratings yet"}
+# Ruta para eliminar un usuario por su username
+@app.delete("/users/{username}", response_model=User)
+def delete_user(username: str):
+    for user in users_db:
+        if user.username == username:
+            users_db.remove(user)
+            return user
+    raise HTTPException(status_code=404, detail="User not found")
+
